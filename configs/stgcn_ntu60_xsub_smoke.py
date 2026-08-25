@@ -1,7 +1,7 @@
 # Kaggle single-GPU SMOKE TEST — inherits everything from the baseline.
 # Goal: prove the end-to-end pipeline runs (loss finite, backward OK,
 # checkpoint written), NOT accuracy. Run with:
-#   python tools/train.py configs/stgcn_ntu60_xsub_smoke.py \
+#   python /kaggle/working/mmaction2/tools/train.py configs/stgcn_ntu60_xsub_smoke.py \
 #       --work-dir work_dirs/stgcn_smoke_test --seed 42
 
 _base_ = './stgcn_ntu60_xsub_baseline.py'

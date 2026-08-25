@@ -37,6 +37,8 @@ Kaggle GPU before any full training or accuracy tuning.
    - installs MMEngine and the pinned `mmcv-lite==2.1.0` wheel (ST-GCN does not
      need MMCV's compiled ops, and current Kaggle Python 3.12 images have no
      matching full-MMCV wheel)
+   - installs MMAction2 v1.2.0 from its source tree in editable mode (required
+     because its regular wheel omits the `localizers/drn` namespace directory)
    - downloads `ntu60_2d.pkl` from the official OpenMMLab release
      (`https://download.openmmlab.com/mmaction/v1.0/skeleton/data/ntu60_2d.pkl`),
      with `/kaggle/input` symlink fallback when Internet is off

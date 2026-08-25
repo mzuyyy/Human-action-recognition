@@ -33,6 +33,7 @@ def main() -> int:
         'expected top-level keys: split, annotations'
 
     splits, anns = data['split'], data['annotations']
+    assert anns, 'annotations is empty'
     print('\n== SPLIT OVERVIEW ==')
     print('number of annotations:', len(anns))
     for name, ids in splits.items():
@@ -60,25 +61,42 @@ def main() -> int:
 
     # shape sanity on every sample (cheap), NaN on a strided subsample
     bad_shape = []
+    bad_metadata = []
     for i, a in enumerate(anns):
         k = a['keypoint']
-        if (k.ndim != 4 or k.shape[2] != 17 or k.shape[3] != 2
-                or k.shape[:2] != a['keypoint_score'].shape[:2]):
+        score = a['keypoint_score']
+        if (k.ndim != 4 or score.ndim != 3 or k.shape[2:] != (17, 2)
+                or k.shape[:3] != score.shape
+                or k.shape[1] != a['total_frames']):
             bad_shape.append(i)
+        if (a['total_frames'] < 1 or len(a['img_shape']) != 2
+                or any(x < 1 for x in a['img_shape'])):
+            bad_metadata.append(i)
+    annotation_ids = {a['frame_dir'] for a in anns}
+    missing_split_ids = {
+        name: len(set(ids) - annotation_ids) for name, ids in splits.items()
+    }
     step = max(1, len(anns) // max(1, args.nan_scan_samples))
     scanned = anns[::step]
-    n_nan = sum(int(np.isnan(a['keypoint']).any()
-                    or np.isnan(a['keypoint_score']).any()) for a in scanned)
+    n_nonfinite = sum(int(not np.isfinite(a['keypoint']).all()
+                          or not np.isfinite(a['keypoint_score']).all())
+                      for a in scanned)
 
     checks = {
         'dataset loads without error': True,
-        '60 unique action labels': uniq.size == 60,
+        'action labels are exactly 0..59': np.array_equal(uniq, np.arange(60)),
         f'keypoint tensors valid (M,T,V=17,C=2) — {len(bad_shape)} malformed':
             not bad_shape,
-        'split xsub_train exists': 'xsub_train' in splits,
-        'split xsub_val exists': 'xsub_val' in splits,
-        f'no NaN/Inf in {len(scanned)} scanned samples ({n_nan} bad)':
-            n_nan == 0,
+        f'frame count and image shape valid — {len(bad_metadata)} malformed':
+            not bad_metadata,
+        'frame_dir identifiers are unique': len(annotation_ids) == len(anns),
+        'every split ID has an annotation': not any(missing_split_ids.values()),
+        'split xsub_train exists and is nonempty':
+            'xsub_train' in splits and len(splits['xsub_train']) > 0,
+        'split xsub_val exists and is nonempty':
+            'xsub_val' in splits and len(splits['xsub_val']) > 0,
+        f'no NaN/Inf in {len(scanned)} scanned samples ({n_nonfinite} bad)':
+            n_nonfinite == 0,
     }
     print('\n== ACCEPTANCE CHECKS ==')
     ok = True

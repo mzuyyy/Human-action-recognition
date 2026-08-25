@@ -52,7 +52,19 @@ def main() -> None:
 
     with open(args.ann_file, 'rb') as f:
         data = pickle.load(f)
-    anns = data['annotations']
+    assert args.split in data['split'], f'unknown split: {args.split}'
+    ann_by_id = {a['frame_dir']: a for a in data['annotations']}
+    split_ids = data['split'][args.split]
+    missing = [
+        sample_id for sample_id in split_ids if sample_id not in ann_by_id
+    ]
+    assert not missing, f'{len(missing)} split samples have no annotation'
+    anns = [ann_by_id[sample_id] for sample_id in split_ids]
+
+    if args.num_samples < 1 or args.num_samples > len(anns):
+        raise ValueError(f'num-samples must be in [1, {len(anns)}]')
+    if args.frames_per_sample < 1:
+        raise ValueError('frames-per-sample must be >= 1')
 
     rng = np.random.default_rng(args.seed)
     picks = rng.choice(len(anns), size=args.num_samples, replace=False)
@@ -66,6 +78,7 @@ def main() -> None:
         frame_ids = np.linspace(0, s['total_frames'] - 1, k).round().astype(int)
 
         fig, axes = plt.subplots(1, k, figsize=(3 * k, 3.4))
+        axes = np.atleast_1d(axes)
         for c, fi in enumerate(frame_ids):
             ax = axes[c]
             ax.set_facecolor('white')
@@ -90,7 +103,9 @@ def main() -> None:
     # combined contact sheet from the per-sample figures
     fig, axes_all = plt.subplots(args.num_samples, k,
                                  figsize=(3 * k, 3 * args.num_samples))
-    axes_all = np.atleast_2d(axes_all)
+    # plt.subplots squeezes singleton dimensions; restore row=sample, col=frame
+    # for both N x 1 and 1 x N layouts.
+    axes_all = np.asarray(axes_all, dtype=object).reshape(args.num_samples, k)
     for row, idx in enumerate(picks):
         s = anns[idx]
         kp, ks = s['keypoint'], s['keypoint_score']

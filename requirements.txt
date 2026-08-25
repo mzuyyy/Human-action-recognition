@@ -6,6 +6,7 @@
 
 numpy
 matplotlib          # skeleton visualization only
+importlib-metadata  # MMAction2 1.2.0 imports the backport even on Python 3.12
 mmengine>=0.7.1,<1.0.0
 
 # ST-GCN does not use mmcv.ops, so use MMCV's official pure-Python package.
@@ -15,4 +16,4 @@ mmengine>=0.7.1,<1.0.0
 mmcv-lite==2.1.0
 
 # mmaction2 is NOT pip-installable standalone; clone the repo and:
-#   python -m pip install ./mmaction2
+#   python -m pip install -e ./mmaction2

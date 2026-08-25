@@ -14,7 +14,7 @@ default_scope = 'mmaction'
 default_hooks = dict(
     runtime_info=dict(type='RuntimeInfoHook'),
     timer=dict(type='IterTimerHook'),
-    logger=dict(type='LoggerHook', interval=20, ignore_last=False),
+    logger=dict(type='LoggerHook', interval=100, ignore_last=False),
     param_scheduler=dict(type='ParamSchedulerHook'),
     checkpoint=dict(type='CheckpointHook', interval=1, save_best='auto'),
     sampler_seed=dict(type='DistSamplerSeedHook'),
@@ -127,8 +127,6 @@ param_scheduler = [
 optim_wrapper = dict(
     optimizer=dict(
         type='SGD', lr=0.1, momentum=0.9, weight_decay=0.0005, nesterov=True))
-
-default_hooks = dict(checkpoint=dict(interval=1), logger=dict(interval=100))
 
 # Default setting for scaling LR automatically
 #   - `enable` means enable scaling LR automatically or not by default.
