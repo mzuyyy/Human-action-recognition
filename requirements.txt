@@ -15,4 +15,4 @@ mmengine>=0.7.1,<1.0.0
 mmcv-lite==2.1.0
 
 # mmaction2 is NOT pip-installable standalone; clone the repo and:
-#   python -m pip install -e ./mmaction2
+#   python -m pip install ./mmaction2

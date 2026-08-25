@@ -62,11 +62,12 @@ python scripts/visualize_skeleton.py --ann-file data/skeleton/ntu60_2d.pkl --out
 ## Full training (after smoke test passes)
 
 ```bash
-python tools/train.py configs/stgcn_ntu60_xsub_baseline.py \
+python /kaggle/working/mmaction2/tools/train.py configs/stgcn_ntu60_xsub_baseline.py \
     --work-dir work_dirs/stgcn_full --seed 42
 ```
 
-(`tools/` comes from the cloned mmaction2 repo; run from the project root.)
+(`tools/train.py` comes from the cloned MMAction2 repo; keep the current working
+directory at the project root so the config and output paths resolve correctly.)
 
 ## Out of scope (this milestone)
 
