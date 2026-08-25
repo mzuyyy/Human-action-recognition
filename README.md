@@ -39,6 +39,8 @@ Kaggle GPU before any full training or accuracy tuning.
      matching full-MMCV wheel)
    - installs MMAction2 v1.2.0 from its source tree in editable mode (required
      because its regular wheel omits the `localizers/drn` namespace directory)
+   - disables MMAction2's unused optional multimodal registry, avoiding its
+     incompatible ViNLU import against Kaggle's preinstalled Transformers
    - downloads `ntu60_2d.pkl` from the official OpenMMLab release
      (`https://download.openmmlab.com/mmaction/v1.0/skeleton/data/ntu60_2d.pkl`),
      with `/kaggle/input` symlink fallback when Internet is off
