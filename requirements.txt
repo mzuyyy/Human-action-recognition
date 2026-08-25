@@ -1,0 +1,19 @@
+# Baseline stack — NTU60 skeleton action recognition (ST-GCN / MMAction2)
+#
+# On Kaggle GPU images, PyTorch + CUDA are PREINSTALLED and matched to the driver.
+# DO NOT reinstall torch there — install the OpenMMLab stack against it (see
+# notebooks/01_baseline_stgcn.ipynb, "Task 2" cell).
+
+numpy
+matplotlib          # skeleton visualization only
+openmim             # official OpenMMLab package manager
+mmengine            # installed via: mim install mmengine
+
+# mmcv MUST match the installed torch/CUDA combo. Prefer the official prebuilt
+# wheel index, e.g.:
+#   pip install "mmcv>=2.0.0" -f https://download.openmmlab.com/mmcv/dist/cu121/torch2.4/index.html
+# Fallback (compiles from source, ~20-35 min on Kaggle): mim install "mmcv>=2.0.0"
+mmcv>=2.0.0
+
+# mmaction2 is NOT pip-installable standalone; clone the repo and:
+#   mim install -e ./mmaction2

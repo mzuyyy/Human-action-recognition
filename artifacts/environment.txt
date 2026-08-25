@@ -1,0 +1,2 @@
+# Filled by notebooks/01_baseline_stgcn.ipynb (Task 1) on the first Kaggle run.
+# Placeholder until then.

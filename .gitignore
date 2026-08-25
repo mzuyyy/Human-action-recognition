@@ -1,0 +1,33 @@
+# environments / junk
+.venv/
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# sandbox leftovers (not part of the project)
+/.env*
+/secrets
+/.secrets/
+/.bash*
+/.profile
+/.zprofile
+/.zshrc
+/.ripgreprc
+/.gitconfig
+/.gitmodules
+/.mcp.json
+/.idea/
+/.vscode/
+/.claude/
+/.pi/
+
+# large data & checkpoints (never commit)
+data/
+*.pkl
+*.pth
+work_dirs/**/*.log
+work_dirs/**/*.json
+
+# keep directory structure
+!work_dirs/stgcn_smoke_test/.gitkeep
