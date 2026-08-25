@@ -6,14 +6,13 @@
 
 numpy
 matplotlib          # skeleton visualization only
-openmim             # official OpenMMLab package manager
-mmengine            # installed via: mim install mmengine
+mmengine>=0.7.1,<1.0.0
 
-# mmcv MUST match the installed torch/CUDA combo. Prefer the official prebuilt
-# wheel index, e.g.:
-#   pip install "mmcv>=2.0.0" -f https://download.openmmlab.com/mmcv/dist/cu121/torch2.4/index.html
-# Fallback (compiles from source, ~20-35 min on Kaggle): mim install "mmcv>=2.0.0"
-mmcv>=2.0.0
+# ST-GCN does not use mmcv.ops, so use MMCV's official pure-Python package.
+# Pin below 2.2.0 because that is MMAction2's upper compatibility bound. This
+# universal wheel also avoids full MMCV's unsupported source build on Kaggle's
+# Python 3.12 + recent PyTorch/CUDA image.
+mmcv-lite==2.1.0
 
 # mmaction2 is NOT pip-installable standalone; clone the repo and:
-#   mim install -e ./mmaction2
+#   python -m pip install -e ./mmaction2

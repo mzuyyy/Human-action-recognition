@@ -34,7 +34,9 @@ Kaggle GPU before any full training or accuracy tuning.
    `/kaggle/working/ntu-action-recognition` — the first notebook cell handles cloning.
 3. Run `notebooks/01_baseline_stgcn.ipynb` top-to-bottom:
    - env dump → `artifacts/environment.txt`
-   - installs OpenMMLab stack via `openmim` (mmcv wheel matched to preinstalled torch/CUDA)
+   - installs MMEngine and the pinned `mmcv-lite==2.1.0` wheel (ST-GCN does not
+     need MMCV's compiled ops, and current Kaggle Python 3.12 images have no
+     matching full-MMCV wheel)
    - downloads `ntu60_2d.pkl` from the official OpenMMLab release
      (`https://download.openmmlab.com/mmaction/v1.0/skeleton/data/ntu60_2d.pkl`),
      with `/kaggle/input` symlink fallback when Internet is off
