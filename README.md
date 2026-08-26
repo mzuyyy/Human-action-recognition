@@ -85,6 +85,7 @@ and records the resolved config, logs, checkpoints, and final report under
 Equivalent command:
 
 ```bash
+TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1 \
 python /kaggle/working/mmaction2/tools/train.py configs/stgcn_ntu60_xsub_80e_resume.py \
     --work-dir work_dirs/stgcn_ntu60_xsub_80e_resume --seed 42 \
     --resume /kaggle/input/models/duymaingoc/resume/pytorch/default/1/best_acc_top1_epoch_8.pth
@@ -99,7 +100,9 @@ the checkpoint's completed 8-epoch cosine state so training does not continue
 with a near-zero learning rate. If the resumed run itself is interrupted, the
 notebook prefers the checkpoint named by the restored work directory's
 `last_checkpoint` marker. The committed config keeps `load_from=None` and
-`resume=False`; the notebook supplies the explicit `--resume` checkpoint.
+`resume=False`; the notebook supplies the explicit `--resume` checkpoint. It
+also sets `TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1` for the training subprocess so
+MMEngine 0.10.x can restore this trusted full checkpoint under PyTorch 2.6+.
 
 ## Out of scope (this milestone)
 
