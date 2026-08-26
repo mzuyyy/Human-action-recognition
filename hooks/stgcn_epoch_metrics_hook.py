@@ -25,7 +25,7 @@ class STGCNEpochMetricsHook(Hook):
         self._last_lr = None
 
     def after_load_checkpoint(self, runner, checkpoint: dict) -> None:
-        """Extend a completed cosine schedule when resuming for more epochs."""
+        """Rebuild the extended cosine state when resuming for more epochs."""
         if self.resume_cosine_t_max is None:
             return
 
@@ -38,18 +38,44 @@ class STGCNEpochMetricsHook(Hook):
             raise RuntimeError(
                 'resume checkpoint is beyond the configured final epoch')
 
-        scheduler_states = checkpoint.get('param_schedulers', [])
-        cosine_states = [
-            state for state in scheduler_states if 'T_max' in state
-        ] if isinstance(scheduler_states, list) else []
+        def collect_cosine_states(value):
+            states = []
+            if isinstance(value, dict):
+                if {'T_max', 'base_values'} <= value.keys():
+                    states.append(value)
+                else:
+                    for child in value.values():
+                        states.extend(collect_cosine_states(child))
+            elif isinstance(value, (list, tuple)):
+                for child in value:
+                    states.extend(collect_cosine_states(child))
+            return states
+
+        # MMEngine supports list and optimizer-keyed dict scheduler layouts.
+        # Snapshot the scheduler built from the new 16-epoch config so the
+        # checkpoint layout is guaranteed to match what Runner will load next.
+        live_schedulers = runner.param_schedulers
+        if isinstance(live_schedulers, dict):
+            rebuilt_states = {
+                name: [scheduler.state_dict() for scheduler in schedulers]
+                for name, schedulers in live_schedulers.items()
+            }
+        else:
+            rebuilt_states = [
+                scheduler.state_dict() for scheduler in live_schedulers
+            ]
+        cosine_states = collect_cosine_states(rebuilt_states)
         if len(cosine_states) != 1:
             raise RuntimeError(
-                'expected exactly one cosine scheduler in resume checkpoint')
+                'resume config must build exactly one cosine scheduler')
 
-        epoch_length = checkpoint_iter / checkpoint_epoch
-        target_t_max = int(round(self.resume_cosine_t_max * epoch_length))
         state = cosine_states[0]
-        current_step = int(state['last_step'])
+        target_t_max = int(state['T_max'])
+        old_cosine_states = collect_cosine_states(
+            checkpoint.get('param_schedulers', []))
+        old_state = old_cosine_states[0] if len(old_cosine_states) == 1 else {}
+        old_t_max = old_state.get('T_max', 'not saved')
+        current_step = int(old_state.get('last_step', checkpoint_iter))
         if current_step > target_t_max:
             raise RuntimeError('resume scheduler step exceeds its new T_max')
         base_values = [float(value) for value in state['base_values']]
@@ -70,13 +96,12 @@ class STGCNEpochMetricsHook(Hook):
         for group, lr in zip(param_groups, resumed_lrs):
             group['lr'] = lr
 
-        old_t_max = state['T_max']
-        state['T_max'] = target_t_max
-        if state.get('end') == old_t_max:
-            state['end'] = target_t_max
+        state['last_step'] = current_step
+        state['_global_step'] = current_step
         state['_last_value'] = resumed_lrs
+        checkpoint['param_schedulers'] = rebuilt_states
         runner.logger.info(
-            'Extended resumed cosine schedule T_max %s -> %s steps; LR=%s',
+            'Rebuilt resumed cosine schedule T_max %s -> %s steps; LR=%s',
             old_t_max, target_t_max, resumed_lrs)
 
     def before_train_epoch(self, runner) -> None:
