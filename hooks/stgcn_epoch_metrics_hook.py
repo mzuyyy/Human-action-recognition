@@ -1,6 +1,7 @@
 """Per-outer-epoch metrics for the NTU60 ST-GCN baseline."""
 
 import json
+import math
 import time
 from pathlib import Path
 
@@ -14,12 +15,69 @@ from mmaction.registry import HOOKS
 class STGCNEpochMetricsHook(Hook):
     """Record one complete JSON row after each train/validation outer epoch."""
 
-    def __init__(self, repeat_times: int = 5) -> None:
+    def __init__(self, repeat_times: int = 5,
+                 resume_cosine_t_max: int | None = None) -> None:
         self.repeat_times = repeat_times
+        self.resume_cosine_t_max = resume_cosine_t_max
         self._epoch_started = 0.0
         self._loss_sum = 0.0
         self._loss_count = 0
         self._last_lr = None
+
+    def after_load_checkpoint(self, runner, checkpoint: dict) -> None:
+        """Extend a completed cosine schedule when resuming for more epochs."""
+        if self.resume_cosine_t_max is None:
+            return
+
+        meta = checkpoint.get('meta', {})
+        checkpoint_epoch = int(meta.get('epoch', 0))
+        checkpoint_iter = int(meta.get('iter', 0))
+        if checkpoint_epoch < 1 or checkpoint_iter < 1:
+            raise RuntimeError('resume checkpoint has no valid epoch/iter metadata')
+        if checkpoint_epoch > self.resume_cosine_t_max:
+            raise RuntimeError(
+                'resume checkpoint is beyond the configured final epoch')
+
+        scheduler_states = checkpoint.get('param_schedulers', [])
+        cosine_states = [
+            state for state in scheduler_states if 'T_max' in state
+        ] if isinstance(scheduler_states, list) else []
+        if len(cosine_states) != 1:
+            raise RuntimeError(
+                'expected exactly one cosine scheduler in resume checkpoint')
+
+        epoch_length = checkpoint_iter / checkpoint_epoch
+        target_t_max = int(round(self.resume_cosine_t_max * epoch_length))
+        state = cosine_states[0]
+        current_step = int(state['last_step'])
+        if current_step > target_t_max:
+            raise RuntimeError('resume scheduler step exceeds its new T_max')
+        base_values = [float(value) for value in state['base_values']]
+
+        resumed_lrs = []
+        for base_value in base_values:
+            eta_min = state.get('eta_min')
+            if eta_min is None:
+                eta_min = base_value * float(state['eta_min_ratio'])
+            lr = eta_min + 0.5 * (base_value - eta_min) * (
+                1 + math.cos(math.pi * current_step / target_t_max))
+            resumed_lrs.append(lr)
+
+        optimizer_state = checkpoint.get('optimizer', {})
+        param_groups = optimizer_state.get('param_groups', [])
+        if len(param_groups) != len(resumed_lrs):
+            raise RuntimeError('optimizer and cosine scheduler groups differ')
+        for group, lr in zip(param_groups, resumed_lrs):
+            group['lr'] = lr
+
+        old_t_max = state['T_max']
+        state['T_max'] = target_t_max
+        if state.get('end') == old_t_max:
+            state['end'] = target_t_max
+        state['_last_value'] = resumed_lrs
+        runner.logger.info(
+            'Extended resumed cosine schedule T_max %s -> %s steps; LR=%s',
+            old_t_max, target_t_max, resumed_lrs)
 
     def before_train_epoch(self, runner) -> None:
         self._epoch_started = time.perf_counter()
