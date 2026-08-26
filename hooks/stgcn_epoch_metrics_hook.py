@@ -50,7 +50,9 @@ class STGCNEpochMetricsHook(Hook):
         else:
             gpu_memory_mb = 0.0
 
-        epoch = runner.epoch + 1
+        # EpochBasedTrainLoop increments its internal epoch before validation,
+        # so runner.epoch is already one-based inside after_val_epoch.
+        epoch = runner.epoch
         metrics = metrics or {}
         record = {
             'outer_epoch': epoch,

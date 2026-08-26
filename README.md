@@ -89,6 +89,10 @@ After an interrupted session, restore the same work directory and set
 the committed config itself remains `load_from=None` and `resume=False` so a new
 experiment never consumes the smoke-test checkpoints.
 
+If `epoch_8.pth` is already present, the notebook treats training as complete:
+it skips the training subprocess, loads the trained ST-GCN on CPU, repairs
+legacy epoch metadata when necessary, and regenerates the final report.
+
 ## Out of scope (this milestone)
 
 MMPose/YOLO/tracking, webcam inference, TensorRT/ONNX export, ST-GCN++,
