@@ -77,10 +77,12 @@ Attach the Kaggle Model containing
 `/kaggle/input/models/duymaingoc/resume/pytorch/default/1/best_acc_top1_epoch_8.pth`,
 then run `notebooks/02_train_stgcn_40e.ipynb` top-to-bottom. The notebook still
 downloads or links `ntu60_2d.pkl`, because true training resume requires the
-training and validation datasets. It restores the full MMEngine checkpoint
-(model, optimizer, scheduler, and epoch state), runs only outer epochs 9–16,
-and records the resolved config, logs, checkpoints, and final report under
-`work_dirs/stgcn_ntu60_xsub_80e_resume/`.
+training and validation datasets. It restores every available MMEngine state,
+runs only outer epochs 9–16, and records the resolved config, logs, checkpoints,
+and final report under `work_dirs/stgcn_ntu60_xsub_80e_resume/`. If the
+published checkpoint omits or has an incompatible optimizer state, the hook
+keeps its model/epoch progress but initializes a new optimizer at the correct
+mid-schedule LR and records that fallback in `resume_state.json`.
 
 Equivalent command:
 

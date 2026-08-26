@@ -89,20 +89,53 @@ class STGCNEpochMetricsHook(Hook):
                 1 + math.cos(math.pi * current_step / target_t_max))
             resumed_lrs.append(lr)
 
-        optimizer_state = checkpoint.get('optimizer', {})
-        param_groups = optimizer_state.get('param_groups', [])
-        if len(param_groups) != len(resumed_lrs):
-            raise RuntimeError('optimizer and cosine scheduler groups differ')
-        for group, lr in zip(param_groups, resumed_lrs):
+        # Apply the resumed LR to the live optimizer immediately. If a
+        # compatible optimizer state exists in the checkpoint, Runner will
+        # load it next and retain momentum; otherwise it will continue with the
+        # newly built optimizer instead of aborting a weights-only checkpoint.
+        live_param_groups = runner.optim_wrapper.optimizer.param_groups
+        if len(live_param_groups) != len(resumed_lrs):
+            raise RuntimeError(
+                'configured optimizer and cosine scheduler groups differ')
+        for group, lr in zip(live_param_groups, resumed_lrs):
             group['lr'] = lr
+
+        optimizer_state = checkpoint.get('optimizer')
+        checkpoint_param_groups = (
+            optimizer_state.get('param_groups', [])
+            if isinstance(optimizer_state, dict) else [])
+        if len(checkpoint_param_groups) == len(resumed_lrs):
+            for group, lr in zip(checkpoint_param_groups, resumed_lrs):
+                group['lr'] = lr
+            optimizer_status = 'restored from checkpoint'
+        else:
+            checkpoint.pop('optimizer', None)
+            optimizer_status = (
+                'reinitialized because the checkpoint has no compatible '
+                f'optimizer groups (found {len(checkpoint_param_groups)}, '
+                f'expected {len(resumed_lrs)})')
+            runner.logger.warning('Resume optimizer %s', optimizer_status)
 
         state['last_step'] = current_step
         state['_global_step'] = current_step
         state['_last_value'] = resumed_lrs
         checkpoint['param_schedulers'] = rebuilt_states
         runner.logger.info(
-            'Rebuilt resumed cosine schedule T_max %s -> %s steps; LR=%s',
-            old_t_max, target_t_max, resumed_lrs)
+            'Rebuilt resumed cosine schedule T_max %s -> %s steps; LR=%s; '
+            'optimizer=%s', old_t_max, target_t_max, resumed_lrs,
+            optimizer_status)
+
+        if runner.rank == 0:
+            resume_state = {
+                'checkpoint_epoch': checkpoint_epoch,
+                'checkpoint_iter': checkpoint_iter,
+                'old_cosine_t_max': old_t_max,
+                'new_cosine_t_max': target_t_max,
+                'learning_rates': resumed_lrs,
+                'optimizer_status': optimizer_status,
+            }
+            path = Path(runner.work_dir) / 'resume_state.json'
+            path.write_text(json.dumps(resume_state, indent=2))
 
     def before_train_epoch(self, runner) -> None:
         self._epoch_started = time.perf_counter()
