@@ -3,27 +3,32 @@
 Skeleton-based human action recognition on **NTU RGB+D 60** (preprocessed 2D
 skeletons), **PyTorch + MMAction2**, model **ST-GCN**, split **Cross-Subject (xsub)**.
 
-This repo currently targets the *smoke-test milestone*: prove the pipeline
-`data → PoseDataset → ST-GCN → loss → checkpoint → validation` end-to-end on a
-Kaggle GPU before any full training or accuracy tuning.
+The smoke pipeline is complete. The active experiment is the ST-GCN Joint
+baseline trained for 8 outer epochs with `RepeatDataset(times=5)`, giving 40
+effective passes over the NTU60 cross-subject training split.
 
 ## Structure
 
 ```text
 ├── configs/
 │   ├── stgcn_ntu60_xsub_baseline.py   # flattened copy of the official MMAction2 config (80 epochs)
-│   └── stgcn_ntu60_xsub_smoke.py      # single-GPU smoke test (1 epoch, bs16, workers 2)
+│   ├── stgcn_ntu60_xsub_smoke.py      # completed single-GPU smoke test
+│   └── stgcn_ntu60_xsub_40e.py        # 8 outer x 5 repeats = 40 effective epochs
 ├── data/skeleton/ntu60_2d.pkl         # NOT committed — downloaded by the notebook (~1.4 GB)
 ├── scripts/
 │   ├── inspect_ntu60.py               # Task 4 — pickle stats, shapes, acceptance checks
 │   └── visualize_skeleton.py          # Task 5 — COCO-17 skeletons on white canvas
+├── hooks/
+│   └── stgcn_epoch_metrics_hook.py     # loss/LR/accuracy/GPU/time per outer epoch
 ├── notebooks/
-│   └── 01_baseline_stgcn.ipynb        # Tasks 1–12 end-to-end on Kaggle GPU
+│   ├── 01_baseline_stgcn.ipynb        # completed smoke pipeline
+│   └── 02_train_stgcn_40e.ipynb       # direct 40-effective-epoch training
 ├── artifacts/
 │   ├── environment.txt                # filled by notebook Task 1
 │   ├── dataset_stats.json             # written by inspect script (--json-out)
 │   └── skeleton_samples/              # visualization PNGs
 ├── work_dirs/stgcn_smoke_test/        # checkpoints + logs (NOT committed)
+├── work_dirs/stgcn_ntu60_xsub_40e/    # 40e checkpoints + logs (NOT committed)
 └── requirements.txt
 ```
 
@@ -63,15 +68,26 @@ python scripts/inspect_ntu60.py --ann-file data/skeleton/ntu60_2d.pkl --json-out
 python scripts/visualize_skeleton.py --ann-file data/skeleton/ntu60_2d.pkl --out-dir artifacts/skeleton_samples
 ```
 
-## Full training (after smoke test passes)
+## 40-effective-epoch baseline training
+
+Run `notebooks/02_train_stgcn_40e.ipynb` top-to-bottom. It starts from scratch,
+streams the full training log, saves every outer epoch and writes the resolved
+config plus final epoch table/report under the dedicated experiment paths.
+
+Equivalent command:
 
 ```bash
-python /kaggle/working/mmaction2/tools/train.py configs/stgcn_ntu60_xsub_baseline.py \
-    --work-dir work_dirs/stgcn_full --seed 42
+python /kaggle/working/mmaction2/tools/train.py configs/stgcn_ntu60_xsub_40e.py \
+    --work-dir work_dirs/stgcn_ntu60_xsub_40e --seed 42
 ```
 
 (`tools/train.py` comes from the cloned MMAction2 repo; keep the current working
 directory at the project root so the config and output paths resolve correctly.)
+
+After an interrupted session, restore the same work directory and set
+`RESUME = True` in the training notebook. This adds MMEngine's `--resume` flag;
+the committed config itself remains `load_from=None` and `resume=False` so a new
+experiment never consumes the smoke-test checkpoints.
 
 ## Out of scope (this milestone)
 
