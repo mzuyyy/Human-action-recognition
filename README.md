@@ -93,6 +93,11 @@ If `epoch_8.pth` is already present, the notebook treats training as complete:
 it skips the training subprocess, loads the trained ST-GCN on CPU, repairs
 legacy epoch metadata when necessary, and regenerates the final report.
 
+The notebook also accepts the published Kaggle Model checkpoint at
+`/kaggle/input/models/duymaingoc/resume/pytorch/default/1/best_acc_top1_epoch_8.pth`.
+When that file is attached, dataset download and training are skipped and the
+weights are loaded directly for reuse.
+
 ## Out of scope (this milestone)
 
 MMPose/YOLO/tracking, webcam inference, TensorRT/ONNX export, ST-GCN++,
