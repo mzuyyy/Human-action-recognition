@@ -11,7 +11,7 @@ custom_hooks = [
 ]
 
 train_dataloader = dict(
-    batch_size=16,
+    batch_size=64,
     num_workers=2,
     persistent_workers=True,
     dataset=dict(times=5))
