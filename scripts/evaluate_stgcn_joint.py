@@ -102,12 +102,30 @@ def build_validation_loader(config: Config, ann_file: Path, seed: int):
     dataloader_cfg.dataset.split = 'xsub_val'
     dataloader_cfg.dataset.test_mode = True
     dataloader_cfg.sampler.shuffle = False
+
+    # MMEngine BaseDataset serializes annotations by default and then clears
+    # dataset.data_list. Carry the stable dataset index and identifier through
+    # PackActionInputs instead of trying to read that cleared list later.
+    pack_transforms = [
+        transform for transform in dataloader_cfg.dataset.pipeline
+        if transform.get('type') == 'PackActionInputs'
+    ]
+    if len(pack_transforms) != 1:
+        raise RuntimeError(
+            'validation pipeline must contain exactly one PackActionInputs')
+    default_meta_keys = ('img_shape', 'img_key', 'video_id', 'timestamp')
+    existing_meta_keys = tuple(
+        pack_transforms[0].get('meta_keys', default_meta_keys))
+    pack_transforms[0]['meta_keys'] = tuple(dict.fromkeys((
+        *existing_meta_keys, 'sample_idx', 'frame_dir', 'filename')))
+
     return Runner.build_dataloader(
         dataloader_cfg, seed=seed, diff_rank_seed=False)
 
 
 def infer(model, dataloader, device: torch.device):
     dataset = dataloader.dataset
+    dataset_size = len(dataset)
     y_true: list[int] = []
     scores: list[np.ndarray] = []
     sample_ids: list[str] = []
@@ -123,17 +141,25 @@ def infer(model, dataloader, device: torch.device):
                 probability, score_kind = probabilities_from_score(
                     output.pred_score.detach().cpu().numpy())
                 label = int(output.gt_label.item())
-                if sample_index >= len(dataset.data_list):
+                if sample_index >= dataset_size:
                     raise RuntimeError('model returned more samples than dataset')
-                annotation = dataset.data_list[sample_index]
-                annotation_label = int(annotation['label'])
-                if label != annotation_label:
+
+                metadata = output.metainfo
+                if 'sample_idx' not in metadata:
                     raise RuntimeError(
-                        'dataloader order/label mismatch at sample '
-                        f'{sample_index}: model={label}, annotation='
-                        f'{annotation_label}')
-                identifier = annotation.get(
-                    'frame_dir', annotation.get('filename', str(sample_index)))
+                        'prediction has no sample_idx metadata; check the '
+                        'validation PackActionInputs configuration')
+                data_index = int(metadata['sample_idx'])
+                if data_index != sample_index:
+                    raise RuntimeError(
+                        'dataloader order mismatch: expected dataset index '
+                        f'{sample_index}, received {data_index}')
+                identifier = metadata.get(
+                    'frame_dir', metadata.get('filename'))
+                if identifier is None:
+                    raise RuntimeError(
+                        f'prediction {data_index} has no frame_dir/filename '
+                        'metadata')
                 y_true.append(label)
                 scores.append(probability)
                 sample_ids.append(str(identifier))
@@ -142,12 +168,12 @@ def infer(model, dataloader, device: torch.device):
             if batch_index % 100 == 0 or batch_index == len(dataloader):
                 print(
                     f'inference: {batch_index}/{len(dataloader)} batches, '
-                    f'{sample_index}/{len(dataset)} samples', flush=True)
+                    f'{sample_index}/{dataset_size} samples', flush=True)
 
-    if sample_index != len(dataset):
+    if sample_index != dataset_size:
         raise RuntimeError(
             f'inference produced {sample_index} predictions for '
-            f'{len(dataset)} samples')
+            f'{dataset_size} samples')
     if len(set(sample_ids)) != len(sample_ids):
         raise RuntimeError('validation sample identifiers are not unique')
     return (
