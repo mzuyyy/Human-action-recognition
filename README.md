@@ -173,10 +173,12 @@ python scripts/analyze_stgcn_results.py \
 
 ## Experiment 2: Joint Motion
 
-Run `notebooks/04_train_stgcn_joint_motion_80e.ipynb` only after notebook 03
-has produced an accepted Joint evaluation with `predictions.csv`, `y_true.npy`,
-`y_pred.npy`, and `y_score.npy`. The notebook preserves those files and
-`artifacts/checkpoints/stgcn_joint_ntu60_xsub_best.pth` as read-only inputs.
+Run `notebooks/04_train_stgcn_joint_motion_80e.ipynb` with either the accepted
+Joint evaluation bundle from notebook 03 (`predictions.csv`, `y_true.npy`,
+`y_pred.npy`, and `y_score.npy`) or the uploaded Joint `epoch_16.pth` together
+with its matching `epoch_metrics.jsonl`. In the latter case the notebook
+rebuilds the bundle by independent inference; it does not retrain Joint. The
+frozen checkpoint and baseline predictions remain read-only comparison inputs.
 
 The controlled config changes only every pipeline's `GenSkeFeat` feature from
 `['j']` to MMAction2's official `['jm']` representation. It retains ST-GCN,
