@@ -3,10 +3,12 @@
 Skeleton-based human action recognition on **NTU RGB+D 60** (preprocessed 2D
 skeletons), **PyTorch + MMAction2**, model **ST-GCN**, split **Cross-Subject (xsub)**.
 
-The smoke pipeline and the first 8 outer epochs are complete. The active run
-resumes that ST-GCN Joint checkpoint through outer epoch 16 with
+The ST-GCN Joint run is complete through outer epoch 16 with
 `RepeatDataset(times=5)`, giving 80 effective passes over the NTU60
-cross-subject training split.
+cross-subject training split. Its final logged validation result is Top-1
+`0.8823` and Top-5 `0.9877`. The current milestone freezes the best logged
+checkpoint and independently evaluates every `xsub_val` sample before creating
+error-analysis artifacts; it does not continue training.
 
 ## Structure
 
@@ -19,16 +21,24 @@ cross-subject training split.
 ├── data/skeleton/ntu60_2d.pkl         # NOT committed — downloaded by the notebook (~1.4 GB)
 ├── scripts/
 │   ├── inspect_ntu60.py               # Task 4 — pickle stats, shapes, acceptance checks
-│   └── visualize_skeleton.py          # Task 5 — COCO-17 skeletons on white canvas
+│   ├── visualize_skeleton.py          # Task 5 — COCO-17 skeletons on white canvas
+│   ├── stgcn_evaluation_common.py      # NTU60 names + log/checkpoint selection
+│   ├── evaluate_stgcn_joint.py         # freeze best + independent full-val inference
+│   └── analyze_stgcn_results.py        # confusion, confidence, curves, reports
 ├── hooks/
 │   └── stgcn_epoch_metrics_hook.py     # loss/LR/accuracy/GPU/time per outer epoch
 ├── notebooks/
 │   ├── 01_baseline_stgcn.ipynb        # completed smoke pipeline
-│   └── 02_train_stgcn_40e.ipynb       # resume epoch 8 -> 16 (80 effective)
+│   ├── 02_train_stgcn_40e.ipynb       # completed resume epoch 8 -> 16
+│   └── 03_evaluate_stgcn_joint.ipynb  # independent evaluation milestone
 ├── artifacts/
 │   ├── environment.txt                # filled by notebook Task 1
 │   ├── dataset_stats.json             # written by inspect script (--json-out)
-│   └── skeleton_samples/              # visualization PNGs
+│   ├── skeleton_samples/              # visualization PNGs
+│   ├── checkpoints/                   # frozen best checkpoint (NOT committed)
+│   ├── evaluation/                    # metrics, predictions, labels, scores
+│   ├── analysis/                      # confusion/error/curve reports
+│   └── readme/                        # compact GitHub-ready result files
 ├── work_dirs/stgcn_smoke_test/        # checkpoints + logs (NOT committed)
 ├── work_dirs/stgcn_ntu60_xsub_40e/    # 40e checkpoints + logs (NOT committed)
 ├── work_dirs/stgcn_ntu60_xsub_80e_resume/ # resumed checkpoints + logs (NOT committed)
@@ -106,8 +116,50 @@ notebook prefers the checkpoint named by the restored work directory's
 also sets `TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1` for the training subprocess so
 MMEngine 0.10.x can restore this trusted full checkpoint under PyTorch 2.6+.
 
+## Independent evaluation and error analysis
+
+Run `notebooks/03_evaluate_stgcn_joint.ipynb` after training completes. In the
+same Kaggle session it reads both work directories directly. In a new session,
+attach a Kaggle Model containing the completed resume work directory, including
+its epoch checkpoints and either `epoch_metrics.jsonl` or
+`training_console.log`. The notebook accepts a run directory containing both a
+regular and a `best_*` copy of epoch 16, links it without modifying the upload,
+and downloads or links `ntu60_2d.pkl` when needed.
+
+The evaluation pipeline:
+
+1. parses the original and resumed logs and selects the available checkpoint
+   with the highest logged validation Top-1 (never merely the last epoch);
+2. copies it to
+   `artifacts/checkpoints/stgcn_joint_ntu60_xsub_best.pth` without deleting the
+   source;
+3. performs fresh inference over all 16,487 `xsub_val` samples and stops if its
+   Top-1 differs from the logged result by more than `0.002`;
+4. exports per-sample predictions and NumPy arrays, then builds the normalized
+   60-class confusion matrix, per-class accuracy, directed confusion pairs,
+   confidence analysis, error hypotheses, training curve, and README files.
+
+The analysis script refuses metrics not marked as an accepted independent
+evaluation, so a stale prediction cache cannot be used after a discrepancy.
+The training curve marks the resume boundary at effective epoch 40 and retains
+the documented Top-1 discontinuity from effective epochs 45–80.
+
+Equivalent commands inside the configured Kaggle environment are:
+
+```bash
+TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1 \
+PYTHONPATH=/kaggle/working/mmaction2:/kaggle/working/ntu-action-recognition \
+python scripts/evaluate_stgcn_joint.py \
+    --work-dir work_dirs/stgcn_ntu60_xsub_40e \
+    --work-dir work_dirs/stgcn_ntu60_xsub_80e_resume
+
+python scripts/analyze_stgcn_results.py \
+    --work-dir work_dirs/stgcn_ntu60_xsub_40e \
+    --work-dir work_dirs/stgcn_ntu60_xsub_80e_resume
+```
+
 ## Out of scope (this milestone)
 
-MMPose/YOLO/tracking, webcam inference, TensorRT/ONNX export, ST-GCN++,
-NTU120, Kinetics400, hyperparameter tuning. Accuracy is irrelevant until the
-baseline runs end-to-end.
+Further Joint training, Bone/Motion training, ST-GCN++, MMPose/YOLO/tracking,
+webcam inference, TensorRT/ONNX export, NTU120, Kinetics400, and hyperparameter
+tuning. None is started by the evaluation notebook.

@@ -5,7 +5,7 @@
 # notebooks/01_baseline_stgcn.ipynb, "Task 2" cell).
 
 numpy
-matplotlib          # skeleton visualization only
+matplotlib          # skeleton visualization + confusion/training plots
 importlib-metadata  # MMAction2 1.2.0 imports the backport even on Python 3.12
 mmengine>=0.7.1,<1.0.0
 
