@@ -186,12 +186,15 @@ NTU60 XSub, uniform 100-frame sampling, optimizer/LR, batch size 64, two
 workers, seed 42, and validation settings. A clean run uses 16 outer epochs,
 `RepeatDataset(times=5)`, and cosine `T_max=16` for 80 effective passes.
 
-Leave `RESUME_CHECKPOINT = None` and `RESUME_METRICS = None` in the notebook for
-the initial run. If Kaggle interrupts it, set both variables to the saved full
-Joint Motion checkpoint and its matching `epoch_metrics.jsonl`; optimizer and
-scheduler state then resume under the unchanged 16-epoch config. The strict
-metrics hook requires true outer epochs 1–16 exactly once, preventing the old
-off-by-one reporting failure.
+With `AUTO_RESUME = True`, the notebook detects the latest full Joint Motion
+checkpoint under `/kaggle/input`, pairs it with the adjacent
+`epoch_metrics.jsonl`, and restores optimizer/scheduler state under the
+unchanged 16-epoch config. `RESUME_CHECKPOINT` and `RESUME_METRICS` remain
+available as explicit overrides. Set `AUTO_RESUME = False` only for a
+deliberately fresh run. The notebook rejects Joint weights, weights-only files,
+wrong schedules, and incomplete/off-by-one metric histories before training.
+It links uploaded checkpoints into the writable work directory so the final
+best-checkpoint selection can include epochs from before the interruption.
 
 After training, the notebook independently evaluates the logged best
 checkpoint and creates:
