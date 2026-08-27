@@ -119,17 +119,25 @@ MMEngine 0.10.x can restore this trusted full checkpoint under PyTorch 2.6+.
 ## Independent evaluation and error analysis
 
 Run `notebooks/03_evaluate_stgcn_joint.ipynb` after training completes. In the
-same Kaggle session it reads both work directories directly. In a new session,
-attach a Kaggle Model containing the completed resume work directory, including
-its epoch checkpoints and either `epoch_metrics.jsonl` or
-`training_console.log`. The notebook accepts a run directory containing both a
-regular and a `best_*` copy of epoch 16, links it without modifying the upload,
-and downloads or links `ntu60_2d.pkl` when needed.
+same Kaggle session it reads the resume work directory directly. In a new
+session, attach one Kaggle Model containing exactly this minimal pair in the
+same directory:
+
+```text
+epoch_16.pth
+epoch_metrics.jsonl
+```
+
+Keep the checkpoint filename as `epoch_16.pth`. The notebook recursively finds
+one unique matching pair under `/kaggle/input`, links only those two read-only
+uploads into `work_dirs/stgcn_ntu60_xsub_80e_resume/`, and downloads or links
+`ntu60_2d.pkl` when needed. Other epoch checkpoints, `latest.pth`,
+`training_console.log`, and `resume_state.json` are not required.
 
 The evaluation pipeline:
 
-1. parses the original and resumed logs and selects the available checkpoint
-   with the highest logged validation Top-1 (never merely the last epoch);
+1. parses `epoch_metrics.jsonl`, verifies that uploaded epoch 16 has the highest
+   logged validation Top-1, and stops if the actual best checkpoint is missing;
 2. copies it to
    `artifacts/checkpoints/stgcn_joint_ntu60_xsub_best.pth` without deleting the
    source;

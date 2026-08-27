@@ -247,6 +247,20 @@ def select_best_checkpoint(
             'No checkpoint could be matched to a logged validation metric. '
             f'Checkpoints: {found}. Metric epochs: {metric_epochs}.')
 
+    logged = [
+        (float(record['val_acc_top1']), epoch)
+        for epoch, record in records.items()
+        if record.get('val_acc_top1') is not None
+    ]
+    highest_logged_top1, highest_logged_epoch = max(logged)
+    highest_available_top1 = max(item[0] for item in ranked)
+    if highest_logged_top1 > highest_available_top1 + 1e-12:
+        raise RuntimeError(
+            f'The highest logged Top-1 is {highest_logged_top1:.6f} at '
+            f'epoch {highest_logged_epoch}, but that checkpoint is not '
+            'available. Upload the actual best checkpoint instead of '
+            'silently evaluating a lower-scoring epoch.')
+
     # Prefer an explicitly named best checkpoint when duplicate files represent
     # the same winning epoch and metric.
     ranked.sort(
