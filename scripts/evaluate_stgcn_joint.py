@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freeze and independently evaluate the best ST-GCN Joint checkpoint."""
+"""Freeze and independently evaluate an ST-GCN skeleton checkpoint."""
 
 from __future__ import annotations
 
@@ -56,6 +56,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         '--evaluation-dir', type=Path,
         default=PROJECT_ROOT / 'artifacts/evaluation')
+    parser.add_argument(
+        '--input-representation', choices=('joint', 'joint_motion'),
+        default='joint')
+    parser.add_argument(
+        '--metrics-name', default='baseline_metrics.json',
+        help='Metrics filename inside --evaluation-dir.')
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument(
         '--top1-tolerance', type=float, default=0.002,
@@ -245,6 +251,8 @@ def write_predictions(
 
 def main() -> None:
     args = parse_args()
+    if Path(args.metrics_name).name != args.metrics_name:
+        raise ValueError('--metrics-name must be a filename, not a path')
     work_dirs = args.work_dirs or [
         PROJECT_ROOT / 'work_dirs/stgcn_ntu60_xsub_40e',
         PROJECT_ROOT / 'work_dirs/stgcn_ntu60_xsub_80e_resume',
@@ -276,7 +284,7 @@ def main() -> None:
     # previous run. The independently computed outputs below are the only
     # accepted inputs to the analysis stage.
     for stale_name in (
-            'baseline_metrics.json', 'evaluation_discrepancy.json',
+            args.metrics_name, 'evaluation_discrepancy.json',
             'predictions.csv', 'y_true.npy', 'y_pred.npy', 'y_score.npy'):
         (args.evaluation_dir / stale_name).unlink(missing_ok=True)
 
@@ -318,7 +326,7 @@ def main() -> None:
         'model': 'ST-GCN',
         'dataset': 'NTU60',
         'protocol': 'xsub',
-        'input': 'joint',
+        'input': args.input_representation,
         'num_classes': 60,
         'train_samples': 40091,
         'validation_samples': len(y_true),
@@ -334,7 +342,7 @@ def main() -> None:
         'evaluation_status': 'accepted' if accepted else 'failed',
         'score_representation': score_kinds,
     }
-    metrics_path = args.evaluation_dir / 'baseline_metrics.json'
+    metrics_path = args.evaluation_dir / args.metrics_name
     metrics_path.write_text(json.dumps(metrics, indent=2))
     print(json.dumps(metrics, indent=2))
 

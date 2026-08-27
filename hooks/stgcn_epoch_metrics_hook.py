@@ -6,9 +6,8 @@ import time
 from pathlib import Path
 
 import torch
-from mmengine.hooks import Hook
-
 from mmaction.registry import HOOKS
+from mmengine.hooks import Hook
 
 
 @HOOKS.register_module()
@@ -16,9 +15,11 @@ class STGCNEpochMetricsHook(Hook):
     """Record one complete JSON row after each train/validation outer epoch."""
 
     def __init__(self, repeat_times: int = 5,
-                 resume_cosine_t_max: int | None = None) -> None:
+                 resume_cosine_t_max: int | None = None,
+                 strict_epoch_sequence: bool = False) -> None:
         self.repeat_times = repeat_times
         self.resume_cosine_t_max = resume_cosine_t_max
+        self.strict_epoch_sequence = strict_epoch_sequence
         self._epoch_started = 0.0
         self._loss_sum = 0.0
         self._loss_count = 0
@@ -185,7 +186,25 @@ class STGCNEpochMetricsHook(Hook):
 
         if runner.rank == 0:
             work_dir = Path(runner.work_dir)
-            with (work_dir / 'epoch_metrics.jsonl').open('a') as stream:
+            metrics_path = work_dir / 'epoch_metrics.jsonl'
+            if self.strict_epoch_sequence:
+                previous_epochs = []
+                if metrics_path.is_file():
+                    previous_epochs = [
+                        int(json.loads(line)['outer_epoch'])
+                        for line in metrics_path.read_text().splitlines()
+                        if line.strip()
+                    ]
+                expected_epoch = (
+                    previous_epochs[-1] + 1 if previous_epochs else 1)
+                if (len(previous_epochs) != len(set(previous_epochs)) or
+                        epoch != expected_epoch):
+                    raise RuntimeError(
+                        'strict epoch logging expected outer epoch '
+                        f'{expected_epoch}, got {epoch}; existing epochs: '
+                        f'{previous_epochs}')
+
+            with metrics_path.open('a') as stream:
                 stream.write(json.dumps(record) + '\n')
 
             regular_checkpoint = work_dir / f'epoch_{epoch}.pth'

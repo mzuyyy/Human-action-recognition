@@ -1,0 +1,9 @@
+{
+  "model": "ST-GCN",
+  "input": "joint",
+  "dataset": "NTU60",
+  "protocol": "xsub",
+  "effective_epochs": 80,
+  "top1": 0.8823,
+  "top5": 0.9877
+}

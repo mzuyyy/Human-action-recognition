@@ -6,9 +6,9 @@ skeletons), **PyTorch + MMAction2**, model **ST-GCN**, split **Cross-Subject (xs
 The ST-GCN Joint run is complete through outer epoch 16 with
 `RepeatDataset(times=5)`, giving 80 effective passes over the NTU60
 cross-subject training split. Its final logged validation result is Top-1
-`0.8823` and Top-5 `0.9877`. The current milestone freezes the best logged
-checkpoint and independently evaluates every `xsub_val` sample before creating
-error-analysis artifacts; it does not continue training.
+`0.8823` and Top-5 `0.9877`. The frozen Joint baseline is not trained further.
+Experiment 2 is a controlled, from-scratch ST-GCN **Joint Motion** run using the
+same settings and MMAction2's official temporal-motion feature.
 
 ## Structure
 
@@ -17,20 +17,23 @@ error-analysis artifacts; it does not continue training.
 │   ├── stgcn_ntu60_xsub_baseline.py   # flattened copy of the official MMAction2 config (80 epochs)
 │   ├── stgcn_ntu60_xsub_smoke.py      # completed single-GPU smoke test
 │   ├── stgcn_ntu60_xsub_40e.py        # completed 8 outer x 5 repeats
-│   └── stgcn_ntu60_xsub_80e_resume.py # resume to 16 outer x 5 repeats
+│   ├── stgcn_ntu60_xsub_80e_resume.py # completed resume to 16 x 5
+│   └── stgcn_ntu60_xsub_joint_motion_80e.py # controlled experiment 2
 ├── data/skeleton/ntu60_2d.pkl         # NOT committed — downloaded by the notebook (~1.4 GB)
 ├── scripts/
 │   ├── inspect_ntu60.py               # Task 4 — pickle stats, shapes, acceptance checks
 │   ├── visualize_skeleton.py          # Task 5 — COCO-17 skeletons on white canvas
 │   ├── stgcn_evaluation_common.py      # NTU60 names + log/checkpoint selection
 │   ├── evaluate_stgcn_joint.py         # freeze best + independent full-val inference
-│   └── analyze_stgcn_results.py        # confusion, confidence, curves, reports
+│   ├── analyze_stgcn_results.py        # Joint confusion/confidence reports
+│   └── analyze_joint_vs_motion.py      # full experiment-2 comparison
 ├── hooks/
 │   └── stgcn_epoch_metrics_hook.py     # loss/LR/accuracy/GPU/time per outer epoch
 ├── notebooks/
 │   ├── 01_baseline_stgcn.ipynb        # completed smoke pipeline
 │   ├── 02_train_stgcn_40e.ipynb       # completed resume epoch 8 -> 16
-│   └── 03_evaluate_stgcn_joint.ipynb  # independent evaluation milestone
+│   ├── 03_evaluate_stgcn_joint.ipynb  # independent Joint evaluation
+│   └── 04_train_stgcn_joint_motion_80e.ipynb # train/evaluate/compare
 ├── artifacts/
 │   ├── environment.txt                # filled by notebook Task 1
 │   ├── dataset_stats.json             # written by inspect script (--json-out)
@@ -38,6 +41,8 @@ error-analysis artifacts; it does not continue training.
 │   ├── checkpoints/                   # frozen best checkpoint (NOT committed)
 │   ├── evaluation/                    # metrics, predictions, labels, scores
 │   ├── analysis/                      # confusion/error/curve reports
+│   ├── experiments/                   # frozen per-experiment results
+│   ├── comparison/                    # Joint-vs-Motion evidence/report
 │   └── readme/                        # compact GitHub-ready result files
 ├── work_dirs/stgcn_smoke_test/        # checkpoints + logs (NOT committed)
 ├── work_dirs/stgcn_ntu60_xsub_40e/    # 40e checkpoints + logs (NOT committed)
@@ -166,8 +171,56 @@ python scripts/analyze_stgcn_results.py \
     --work-dir work_dirs/stgcn_ntu60_xsub_80e_resume
 ```
 
+## Experiment 2: Joint Motion
+
+Run `notebooks/04_train_stgcn_joint_motion_80e.ipynb` only after notebook 03
+has produced an accepted Joint evaluation with `predictions.csv`, `y_true.npy`,
+`y_pred.npy`, and `y_score.npy`. The notebook preserves those files and
+`artifacts/checkpoints/stgcn_joint_ntu60_xsub_best.pth` as read-only inputs.
+
+The controlled config changes only every pipeline's `GenSkeFeat` feature from
+`['j']` to MMAction2's official `['jm']` representation. It retains ST-GCN,
+NTU60 XSub, uniform 100-frame sampling, optimizer/LR, batch size 64, two
+workers, seed 42, and validation settings. A clean run uses 16 outer epochs,
+`RepeatDataset(times=5)`, and cosine `T_max=16` for 80 effective passes.
+
+Leave `RESUME_CHECKPOINT = None` and `RESUME_METRICS = None` in the notebook for
+the initial run. If Kaggle interrupts it, set both variables to the saved full
+Joint Motion checkpoint and its matching `epoch_metrics.jsonl`; optimizer and
+scheduler state then resume under the unchanged 16-epoch config. The strict
+metrics hook requires true outer epochs 1–16 exactly once, preventing the old
+off-by-one reporting failure.
+
+After training, the notebook independently evaluates the logged best
+checkpoint and creates:
+
+```text
+artifacts/checkpoints/stgcn_joint_motion_ntu60_xsub_best.pth
+artifacts/experiments/joint_motion/
+├── metrics.json
+├── predictions.csv
+├── y_true.npy
+├── y_pred.npy
+├── y_score.npy
+├── per_class_accuracy.csv
+├── confusion_matrix.png
+├── high_confidence_errors.csv
+└── training_curve.png
+artifacts/comparison/
+├── joint_vs_joint_motion.csv
+├── per_class_joint_vs_motion.csv
+├── targeted_class_accuracy.csv
+├── targeted_confusions.csv
+├── confidence_joint_vs_motion.csv
+├── confusion_joint_vs_motion.png
+└── joint_vs_joint_motion.md
+```
+
+The conclusion and next-experiment recommendation are generated only from the
+independent predictions. The notebook does not launch the recommended follow-up.
+
 ## Out of scope (this milestone)
 
-Further Joint training, Bone/Motion training, ST-GCN++, MMPose/YOLO/tracking,
-webcam inference, TensorRT/ONNX export, NTU120, Kinetics400, and hyperparameter
-tuning. None is started by the evaluation notebook.
+Further Joint training, Bone/Bone-Motion training, ST-GCN++, MMPose/YOLO,
+RGB/skeleton fusion, webcam inference, TensorRT/ONNX export, NTU120,
+Kinetics400, and hyperparameter tuning. None is started by experiment 2.
