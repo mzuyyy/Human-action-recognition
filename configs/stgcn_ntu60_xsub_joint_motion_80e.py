@@ -79,5 +79,5 @@ param_scheduler = [
 ]
 
 load_from = None
-resume = False
+resume = True
 randomness = dict(seed=42, diff_rank_seed=False, deterministic=False)

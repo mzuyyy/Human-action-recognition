@@ -32,7 +32,7 @@ visualizer = dict(type='ActionVisualizer', vis_backends=vis_backends)
 
 log_level = 'INFO'
 load_from = None
-resume = False
+resume = True
 
 model = dict(
     type='RecognizerGCN',

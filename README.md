@@ -116,8 +116,8 @@ covering all 16 outer epochs. When epoch 8 is loaded, the custom hook expands
 the checkpoint's completed 8-epoch cosine state so training does not continue
 with a near-zero learning rate. If the resumed run itself is interrupted, the
 notebook prefers the checkpoint named by the restored work directory's
-`last_checkpoint` marker. The committed config keeps `load_from=None` and
-`resume=False`; the notebook supplies the explicit `--resume` checkpoint. It
+`last_checkpoint` marker. The committed configs keep `load_from=None` and
+`resume=True`; the notebook supplies the explicit `--resume` checkpoint. It
 also sets `TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1` for the training subprocess so
 MMEngine 0.10.x can restore this trusted full checkpoint under PyTorch 2.6+.
 
@@ -186,15 +186,16 @@ NTU60 XSub, uniform 100-frame sampling, optimizer/LR, batch size 64, two
 workers, seed 42, and validation settings. A clean run uses 16 outer epochs,
 `RepeatDataset(times=5)`, and cosine `T_max=16` for 80 effective passes.
 
-With `AUTO_RESUME = True`, the notebook detects the latest full Joint Motion
-checkpoint under `/kaggle/input`, pairs it with the adjacent
-`epoch_metrics.jsonl`, and restores optimizer/scheduler state under the
-unchanged 16-epoch config. `RESUME_CHECKPOINT` and `RESUME_METRICS` remain
-available as explicit overrides. Set `AUTO_RESUME = False` only for a
-deliberately fresh run. The notebook rejects Joint weights, weights-only files,
-wrong schedules, and incomplete/off-by-one metric histories before training.
-It links uploaded checkpoints into the writable work directory so the final
-best-checkpoint selection can include epochs from before the interruption.
+This continuation is resume-only. The notebook searches
+`/kaggle/input/models/duymaingoc/resume-1/pytorch/default/1` for the latest full
+Joint Motion checkpoint, pairs it with the adjacent `epoch_metrics.jsonl`, and
+restores optimizer/scheduler state under the unchanged 16-epoch config. No
+checkpoint filename edit is required. Every training config has `resume=True`,
+and the notebook refuses to fall back to a fresh run if the required input is
+missing or incompatible. It rejects Joint weights, weights-only files, wrong
+schedules, and incomplete/off-by-one metric histories before training. It also
+links uploaded checkpoints into the writable work directory so final best-model
+selection can include epochs from before the interruption.
 
 After training, the notebook independently evaluates the logged best
 checkpoint and creates:

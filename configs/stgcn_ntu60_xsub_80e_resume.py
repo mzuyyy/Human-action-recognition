@@ -27,7 +27,7 @@ param_scheduler = [
         convert_to_iter_based=True)
 ]
 
-# The notebook supplies the external epoch-8 checkpoint with
-# `--resume CHECKPOINT`. Keep the committed config safe for standalone use.
+# The notebook supplies the verified external checkpoint with
+# `--resume CHECKPOINT`; resume-first mode is intentional.
 load_from = None
-resume = False
+resume = True
