@@ -26,14 +26,16 @@ same settings and MMAction2's official temporal-motion feature.
 │   ├── stgcn_evaluation_common.py      # NTU60 names + log/checkpoint selection
 │   ├── evaluate_stgcn_joint.py         # freeze best + independent full-val inference
 │   ├── analyze_stgcn_results.py        # Joint confusion/confidence reports
-│   └── analyze_joint_vs_motion.py      # full experiment-2 comparison
+│   ├── analyze_joint_vs_motion.py      # full experiment-2 comparison
+│   └── fuse_joint_motion.py            # fixed 50/50 score-level late fusion
 ├── hooks/
 │   └── stgcn_epoch_metrics_hook.py     # loss/LR/accuracy/GPU/time per outer epoch
 ├── notebooks/
 │   ├── 01_baseline_stgcn.ipynb        # completed smoke pipeline
 │   ├── 02_train_stgcn_40e.ipynb       # completed resume epoch 8 -> 16
 │   ├── 03_evaluate_stgcn_joint.ipynb  # independent Joint evaluation
-│   └── 04_train_stgcn_joint_motion_80e.ipynb # train/evaluate/compare
+│   ├── 04_train_stgcn_joint_motion_80e.ipynb # train/evaluate/compare
+│   └── 05_joint_motion_late_fusion.ipynb # inference-score fusion only
 ├── artifacts/
 │   ├── environment.txt                # filled by notebook Task 1
 │   ├── dataset_stats.json             # written by inspect script (--json-out)
@@ -43,6 +45,7 @@ same settings and MMAction2's official temporal-motion feature.
 │   ├── analysis/                      # confusion/error/curve reports
 │   ├── experiments/                   # frozen per-experiment results
 │   ├── comparison/                    # Joint-vs-Motion evidence/report
+│   ├── fusion/                        # fixed Joint+Motion late-fusion outputs
 │   └── readme/                        # compact GitHub-ready result files
 ├── work_dirs/stgcn_smoke_test/        # checkpoints + logs (NOT committed)
 ├── work_dirs/stgcn_ntu60_xsub_40e/    # 40e checkpoints + logs (NOT committed)
@@ -224,6 +227,20 @@ artifacts/comparison/
 
 The conclusion and next-experiment recommendation are generated only from the
 independent predictions. The notebook does not launch the recommended follow-up.
+
+## Fixed Joint + Joint Motion late fusion
+
+Run `notebooks/05_joint_motion_late_fusion.ipynb` after both independent
+prediction bundles are available. It requires `y_true.npy`, `y_score.npy`, and
+`predictions.csv` for Joint and Joint Motion. It verifies all 16,487 validation
+samples and the `(16487, 60)` score shapes, then aligns Motion to Joint by
+`sample_id` before any arithmetic.
+
+The only fusion evaluated is the predeclared unbiased average
+`0.5 * joint_score + 0.5 * motion_score`; the notebook performs no alpha search
+and invokes no training entry point. It writes metrics, complete predictions,
+per-class accuracy, targeted confusions, disagreement analysis, a normalized
+confusion matrix, and the final Markdown report under `artifacts/fusion/`.
 
 ## Out of scope (this milestone)
 
