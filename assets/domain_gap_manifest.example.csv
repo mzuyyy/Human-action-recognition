@@ -1,0 +1,6 @@
+video_path,expected_action
+videos/clapping.mp4,clapping
+videos/standing_up.mp4,standing up (from sitting position)
+videos/sitting_down.mp4,sitting down
+videos/writing.mp4,writing
+videos/brushing_hair.mp4,brushing hair
